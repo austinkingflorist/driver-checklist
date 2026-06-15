@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Driver CL">
+<title>Driver Check List - KF</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ink: #1a1a2e; --light: #9090aa; --rule: #e2e2ec;
+    --accent: #2d6a4f; --accent-light: #d8f3dc; --accent-dark: #1a472a;
+    --bg: #f7f7fb; --card: #ffffff;
+  }
+  html, body { width: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg); color: var(--ink);
+    padding-bottom: 30px; font-size: 16px;
+  }
+  header {
+    background: var(--ink); color: white;
+    padding: 14px 16px 10px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .hdr-row { display: flex; justify-content: space-between; align-items: flex-start; }
+  header h1 { font-size: 1.15rem; font-weight: 600; }
+  .hdr-day { font-size: 0.72rem; color: #8888aa; margin-top: 2px; }
+  .hdr-time { text-align: right; }
+  .hdr-time .time { font-size: 1rem; font-weight: 500; color: #7ec8a0; }
+  .hdr-time .date { font-size: 0.72rem; color: #8888aa; margin-top: 2px; }
+  .panel { padding: 12px 14px; }
+  .top-fields {
+    background: var(--card); border-radius: 12px;
+    border: 1px solid var(--rule); padding: 10px 14px; margin-bottom: 10px;
+  }
+  .top-field-row {
+    display: flex; align-items: center;
+    padding: 8px 0; border-bottom: 1px solid var(--rule);
+  }
+  .top-field-row:last-child { border-bottom: none; }
+  .top-field-row label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--light); width: 110px; flex-shrink: 0;
+  }
+  .top-field-row input {
+    border: none; background: transparent; font-size: 1rem;
+    color: var(--ink); flex: 1; padding: 2px 4px; -webkit-appearance: none;
+  }
+  .top-field-row input:focus { outline: none; color: var(--accent); }
+  .checklist-card {
+    background: var(--card); border-radius: 12px;
+    border: 1px solid var(--rule); padding: 12px 14px; margin-bottom: 10px;
+  }
+  .checklist-label {
+    font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+    text-transform: uppercase; color: var(--light); margin-bottom: 10px; display: block;
+  }
+  .chk-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .chk-item {
+    flex: 1; display: flex; align-items: center; gap: 10px;
+    padding: 11px 12px; border: 1.5px solid var(--rule);
+    border-radius: 9px; cursor: pointer; background: var(--bg); transition: all 0.15s;
+  }
+  .chk-item.checked { border-color: var(--accent); background: var(--accent-light); }
+  .chk-item input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--accent); flex-shrink: 0; }
+  .chk-item span { font-size: 0.88rem; font-weight: 500; line-height: 1.2; }
+  .chk-item.checked span { color: var(--accent-dark); }
+  .btn {
+    display: block; width: 100%; padding: 15px; border: none;
+    border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer;
+  }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:active { background: #245c42; transform: scale(0.98); }
+  .btn-primary:disabled { background: #aaa; cursor: not-allowed; }
+  .sync-status {
+    font-size: 0.85rem; text-align: center; padding: 8px;
+    border-radius: 8px; margin-bottom: 10px; display: none;
+  }
+  .sync-status.syncing { display: block; background: #fff3cd; color: #856404; }
+  .sync-status.success { display: block; background: var(--accent-light); color: var(--accent-dark); }
+  .sync-status.error   { display: block; background: #fde8e8; color: #c0392b; }
+  .toast {
+    position: fixed; bottom: 24px; left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--ink); color: white; padding: 11px 22px;
+    border-radius: 30px; font-size: 0.85rem; font-weight: 500;
+    opacity: 0; transition: all 0.3s; z-index: 999; white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-row">
+    <div>
+      <h1>Driver Check List - KF</h1>
+      <div class="hdr-day" id="live-day"></div>
+    </div>
+    <div class="hdr-time">
+      <div class="time" id="live-time"></div>
+      <div class="date" id="live-date"></div>
+    </div>
+  </div>
+</header>
+
+<div class="panel">
+  <div id="sync-status" class="sync-status"></div>
+
+  <div class="top-fields">
+    <div class="top-field-row">
+      <label for="name">Driver Name</label>
+      <input type="text" id="name" placeholder="Full name" autocomplete="name">
+    </div>
+    <div class="top-field-row">
+      <label for="van">Van #</label>
+      <input type="number" id="van" placeholder="e.g. 3" min="1" inputmode="numeric">
+    </div>
+    <div class="top-field-row">
+      <label for="mileage">Mileage</label>
+      <input type="number" id="mileage" placeholder="Current" min="0" inputmode="numeric">
+    </div>
+  </div>
+
+  <div class="checklist-card">
+    <span class="checklist-label">Pre-Trip Checklist</span>
+    <div class="chk-row">
+      <label class="chk-item" id="ci0"><input type="checkbox" id="chk-succulents" onchange="toggle(0)"><span>Succulents</span></label>
+      <label class="chk-item" id="ci1"><input type="checkbox" id="chk-finishing" onchange="toggle(1)"><span>Finishing Touch</span></label>
+    </div>
+    <div class="chk-row">
+      <label class="chk-item" id="ci2"><input type="checkbox" id="chk-cellphone" onchange="toggle(2)"><span>Shop Cell Phone</span></label>
+      <label class="chk-item" id="ci3"><input type="checkbox" id="chk-rag" onchange="toggle(3)"><span>Clean Rag</span></label>
+    </div>
+    <div class="chk-row">
+      <label class="chk-item" id="ci4"><input type="checkbox" id="chk-bizcard" onchange="toggle(4)"><span>Business Cards</span></label>
+      <label class="chk-item" id="ci5"><input type="checkbox" id="chk-enclosure" onchange="toggle(5)"><span>Blank Enclosure Cards</span></label>
+    </div>
+    <div class="chk-row">
+      <label class="chk-item" id="ci6"><input type="checkbox" id="chk-jacket" onchange="toggle(6)"><span>Card Jackets</span></label>
+    </div>
+  </div>
+
+  <button class="btn btn-primary" id="save-btn" onclick="saveEntry()">💾 Save & Sync to Google Sheets</button>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwohuMf_2upl4a42teSGedGl5BsXFTrvk9kiGCAcsb3Lg_FzwGZyi5qR_fOjGf5QtAQjw/exec';
+
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('live-time').textContent = now.toLocaleTimeString('en-US', {hour:'numeric',minute:'2-digit',second:'2-digit'});
+    document.getElementById('live-date').textContent = now.toLocaleDateString('en-US', {month:'short',day:'numeric',year:'numeric'});
+    document.getElementById('live-day').textContent = now.toLocaleDateString('en-US', {weekday:'long'});
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  function toggle(i) {
+    const el = document.getElementById('ci' + i);
+    if (el.querySelector('input').checked) el.classList.add('checked');
+    else el.classList.remove('checked');
+  }
+
+  function saveEntry() {
+    const name = document.getElementById('name').value.trim();
+    const van = document.getElementById('van').value.trim();
+    const mileage = document.getElementById('mileage').value.trim();
+
+    if (!name)    { showToast('⚠️ Please enter driver name'); return; }
+    if (!van)     { showToast('⚠️ Please enter van number'); return; }
+    if (!mileage) { showToast('⚠️ Please enter mileage'); return; }
+
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    setStatus('syncing', '⏳ Syncing to Google Sheets...');
+
+    const params = new URLSearchParams({
+      action:              'submit',
+      callback:            'handleResponse',
+      timestamp:           new Date().toLocaleString('en-US'),
+      driverName:          name,
+      vanNumber:           van,
+      startMiles:          mileage,
+      endMiles:            '',
+      totalMiles:          '',
+      succulents:          document.getElementById('chk-succulents').checked  ? 'Yes' : 'No',
+      finishingTouch:      document.getElementById('chk-finishing').checked   ? 'Yes' : 'No',
+      shopCellPhone:       document.getElementById('chk-cellphone').checked   ? 'Yes' : 'No',
+      cleanRag:            document.getElementById('chk-rag').checked         ? 'Yes' : 'No',
+      businessCards:       document.getElementById('chk-bizcard').checked     ? 'Yes' : 'No',
+      blankEnclosureCards: document.getElementById('chk-enclosure').checked   ? 'Yes' : 'No',
+      cardJackets:         document.getElementById('chk-jacket').checked      ? 'Yes' : 'No'
+    });
+
+    window.handleResponse = function(data) {
+      if (data.result === 'success') {
+        setStatus('success', '✅ Saved & synced to Google Sheets!');
+        showToast('✅ Entry synced!');
+        resetForm();
+      } else {
+        setStatus('error', '⚠️ Something went wrong. Try again.');
+      }
+      btn.disabled = false;
+      setTimeout(() => setStatus('', ''), 4000);
+      const s = document.getElementById('jsonp-script');
+      if (s) document.body.removeChild(s);
+    };
+
+    const script = document.createElement('script');
+    script.id = 'jsonp-script';
+    script.src = SCRIPT_URL + '?' + params.toString();
+    script.onerror = function() {
+      setStatus('error', '⚠️ Sync failed. Check connection.');
+      showToast('⚠️ Sync failed');
+      btn.disabled = false;
+      setTimeout(() => setStatus('', ''), 4000);
+      const s = document.getElementById('jsonp-script');
+      if (s) document.body.removeChild(s);
+    };
+    document.body.appendChild(script);
+  }
+
+  function resetForm() {
+    document.getElementById('name').value = '';
+    document.getElementById('van').value = '';
+    document.getElementById('mileage').value = '';
+    document.querySelectorAll('.chk-item input[type="checkbox"]').forEach(c => c.checked = false);
+    document.querySelectorAll('.chk-item').forEach(el => el.classList.remove('checked'));
+  }
+
+  function setStatus(type, msg) {
+    const el = document.getElementById('sync-status');
+    el.className = 'sync-status' + (type ? ' ' + type : '');
+    el.textContent = msg;
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2800);
+  }
+</script>
+</body>
+</html>
